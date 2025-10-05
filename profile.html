@@ -257,6 +257,13 @@
 
         async function loadUserStats(userId) {
             try {
+                console.log('Loading user stats for:', userId);
+                const billsRef = collection(db, 'bills');
+                const q = query(billsRef, where('ownerId', '==', userId));
+                const snapshot = await getDocs(q);
+                
+                console.log('Bills loaded:', snapshot.size);
+                
                 const bills = [];
                 snapshot.forEach(doc => {
                     bills.push({ id: doc.id, ...doc.data() });
@@ -279,6 +286,8 @@
                     if (bill.category) categories.add(bill.category);
                 });
 
+                console.log('Stats calculated:', { total: bills.length, spent: total, thisWeek, thisMonth, categories: categories.size });
+
                 // Update UI
                 document.getElementById('totalBills').textContent = bills.length;
                 document.getElementById('totalSpent').textContent = total.toFixed(0);
@@ -288,6 +297,8 @@
 
             } catch (error) {
                 console.error('Error loading stats:', error);
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
             }
         }
 
@@ -311,20 +322,25 @@
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     bills.push({
-                        Name: data.name || 'Unnamed',
+                        Username: data.username || 'Unnamed',
                         Category: data.category || 'miscellaneous',
                         Amount: data.amount || 0,
                         Date: data.date || 'Unknown',
-                        Source: data.source || 'unknown',
-                        Items: data.items?.length || 0
+                        Description: data.description || '',
+                        CreatedAt: data.created_at?.toDate().toLocaleDateString() || 'Unknown'
                     });
                 });
 
+                if (bills.length === 0) {
+                    alert('No bills to export!');
+                    return;
+                }
+
                 // Convert to CSV
-                const headers = Object.keys(bills[0] || {});
+                const headers = Object.keys(bills[0]);
                 const csv = [
                     headers.join(','),
-                    ...bills.map(row => headers.map(h => row[h]).join(','))
+                    ...bills.map(row => headers.map(h => `"${row[h]}"`).join(','))
                 ].join('\n');
 
                 // Download
