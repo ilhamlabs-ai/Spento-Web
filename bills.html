@@ -158,9 +158,11 @@
         // Check authentication
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
+                console.log('No user authenticated, redirecting to login');
                 window.location.href = 'index.html';
                 return;
             }
+            console.log('User authenticated:', user.uid);
             currentUser = user;
             await loadBills();
         });
@@ -168,21 +170,53 @@
         // Load all bills
         async function loadBills() {
             try {
+                console.log('Loading bills for user:', currentUser.uid);
                 const billsRef = collection(db, 'bills');
-                const q = query(billsRef, where('ownerId', '==', currentUser.uid), orderBy('created_at', 'desc'));
+                
+                // Try query with just where clause first (no orderBy to avoid index requirement)
+                const q = query(billsRef, where('ownerId', '==', currentUser.uid));
                 const snapshot = await getDocs(q);
+                
+                console.log('Bills loaded:', snapshot.size);
                 
                 allBills = [];
                 snapshot.forEach(doc => {
-                    allBills.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    console.log('Bill data:', doc.id, data);
+                    allBills.push({ id: doc.id, ...data });
                 });
 
+                // Sort in JavaScript instead of Firestore to avoid composite index requirement
+                allBills.sort((a, b) => {
+                    const dateA = a.created_at?.toDate() || new Date(a.date);
+                    const dateB = b.created_at?.toDate() || new Date(b.date);
+                    return dateB - dateA;
+                });
+
+                console.log('Displaying bills:', allBills.length);
                 displayBills(allBills);
             } catch (error) {
                 console.error('Error loading bills:', error);
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
+                
+                let errorMessage = 'Error loading bills. Please try again.';
+                if (error.code === 'permission-denied') {
+                    errorMessage = 'Permission denied. Please check your Firestore security rules.';
+                } else if (error.message.includes('index')) {
+                    errorMessage = 'Database index required. Please check the console for the index creation link.';
+                }
+                
                 document.getElementById('billsList').innerHTML = `
                     <div class="text-center py-12 bg-white rounded-2xl shadow-lg">
-                        <p class="text-red-500">Error loading bills. Please try again.</p>
+                        <svg class="w-16 h-16 mx-auto mb-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-red-500 mb-2">${errorMessage}</p>
+                        <p class="text-sm text-gray-500">Error: ${error.code || error.message}</p>
+                        <button onclick="location.reload()" class="mt-4 gradient-bg text-white px-6 py-2 rounded-lg">
+                            Retry
+                        </button>
                     </div>
                 `;
             }
