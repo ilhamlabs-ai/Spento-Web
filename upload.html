@@ -240,7 +240,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
         import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-        import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
         import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js';
 
         const firebaseConfig = {
@@ -262,10 +262,11 @@
         // 🔐 NO API KEY HERE - Using Cloud Functions!
 
         let currentUser = null;
+        let currentUserData = null; // Store Firestore user data
         let selectedFile = null;
 
         // Check authentication
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 console.log('No user authenticated, redirecting to login');
                 window.location.href = 'index.html';
@@ -273,6 +274,18 @@
             }
             console.log('✅ User authenticated:', user.uid, user.email);
             currentUser = user;
+            
+            // Load user data from Firestore
+            try {
+                const userRef = doc(db, 'users', user.uid);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    currentUserData = userSnap.data();
+                    console.log('Loaded user data:', currentUserData);
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
             
             // Enable buttons now that user is authenticated
             document.getElementById('analyzeBtn').disabled = false;
@@ -497,13 +510,15 @@
 
         // Save bill from analysis
         document.getElementById('saveBillBtn').addEventListener('click', async () => {
+            const username = currentUserData?.username || currentUser.email.split('@')[0];
+            
             const billData = {
-                username: document.getElementById('billName').value,
+                username: username,
                 category: document.getElementById('billCategory').value,
                 amount: parseFloat(document.getElementById('billAmount').value),
                 date: document.getElementById('billDate').value,
                 ownerId: currentUser.uid,
-                description: `Receipt scanned - ${window.analyzedItems?.length || 0} items detected`,
+                description: document.getElementById('billName').value || `Receipt scanned - ${window.analyzedItems?.length || 0} items detected`,
                 created_at: serverTimestamp(),
                 updated_at: serverTimestamp()
             };
@@ -515,13 +530,15 @@
         document.getElementById('manualForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const username = currentUserData?.username || currentUser.email.split('@')[0];
+
             const billData = {
-                username: document.getElementById('manualName').value,
+                username: username,
                 category: document.getElementById('manualCategory').value,
                 amount: parseFloat(document.getElementById('manualAmount').value),
                 date: document.getElementById('manualDate').value,
                 ownerId: currentUser.uid,
-                description: document.getElementById('manualNotes').value || '',
+                description: document.getElementById('manualNotes').value || document.getElementById('manualName').value,
                 created_at: serverTimestamp(),
                 updated_at: serverTimestamp()
             };

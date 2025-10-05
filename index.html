@@ -140,23 +140,32 @@
                 const result = await signInWithPopup(auth, provider);
                 const user = result.user;
                 
-                // Save or update user in Firestore
+                console.log('User signed in:', user.uid);
+                
+                // Save or update user in Firestore (matching Flutter schema)
                 const userRef = doc(db, 'users', user.uid);
                 const userSnap = await getDoc(userRef);
                 
                 if (!userSnap.exists()) {
-                    // New user - create profile
-                    await setDoc(userRef, {
+                    // New user - create profile matching Flutter AppUser model
+                    const userData = {
+                        username: user.email.split('@')[0], // Generate username from email
                         email: user.email,
-                        name: user.displayName,
-                        username: user.email.split('@')[0],
+                        name: user.displayName || user.email.split('@')[0],
+                        firebase_uid: user.uid,
+                        google_id: user.providerData[0]?.uid || null,
+                        profile_picture: user.photoURL || null,
+                        verified_email: user.emailVerified,
                         auth_method: 'google',
-                        picture: user.photoURL,
                         created_at: serverTimestamp(),
                         updated_at: serverTimestamp()
-                    });
+                    };
+                    
+                    console.log('Creating new user document:', userData);
+                    await setDoc(userRef, userData);
                 } else {
                     // Existing user - update last login
+                    console.log('Updating existing user');
                     await setDoc(userRef, {
                         updated_at: serverTimestamp()
                     }, { merge: true });
@@ -167,6 +176,8 @@
                 
             } catch (error) {
                 console.error('Error signing in:', error);
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
                 alert('Failed to sign in. Please try again.');
             }
         });

@@ -213,7 +213,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
         import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-        import { getFirestore, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyC6QYvm6Y_lb7aO_v2bSepXZ6qxBxkkuyE",
@@ -235,22 +235,55 @@
                 return;
             }
             
-            // Display user info
-            document.getElementById('userName').textContent = user.displayName || 'User';
-            document.getElementById('userEmail').textContent = user.email;
+            console.log('Loading profile for user:', user.uid);
             
-            if (user.photoURL) {
-                document.getElementById('userPhoto').src = user.photoURL;
-            } else {
-                document.getElementById('userPhoto').classList.add('hidden');
-                document.getElementById('defaultAvatar').classList.remove('hidden');
+            // Load user data from Firestore users collection (Flutter schema)
+            try {
+                const userRef = doc(db, 'users', user.uid);
+                const userSnap = await getDoc(userRef);
+                
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    console.log('User data from Firestore:', userData);
+                    
+                    // Display user info from Firestore
+                    document.getElementById('userName').textContent = userData.name || userData.username || 'User';
+                    document.getElementById('userEmail').textContent = userData.email || user.email;
+                    
+                    if (userData.profile_picture) {
+                        document.getElementById('userPhoto').src = userData.profile_picture;
+                    } else {
+                        document.getElementById('userPhoto').classList.add('hidden');
+                        document.getElementById('defaultAvatar').classList.remove('hidden');
+                    }
+                    
+                    // Join date from Firestore
+                    const joinDate = userData.created_at?.toDate() ? 
+                        userData.created_at.toDate().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 
+                        'Recently';
+                    document.getElementById('joinedDate').textContent = joinDate;
+                } else {
+                    // Fallback to Firebase Auth data
+                    console.log('No Firestore user data, using Firebase Auth');
+                    document.getElementById('userName').textContent = user.displayName || 'User';
+                    document.getElementById('userEmail').textContent = user.email;
+                    
+                    if (user.photoURL) {
+                        document.getElementById('userPhoto').src = user.photoURL;
+                    } else {
+                        document.getElementById('userPhoto').classList.add('hidden');
+                        document.getElementById('defaultAvatar').classList.remove('hidden');
+                    }
+                    
+                    // Join date from Auth
+                    const joinDate = user.metadata.creationTime ? 
+                        new Date(user.metadata.creationTime).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 
+                        'Recently';
+                    document.getElementById('joinedDate').textContent = joinDate;
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
             }
-            
-            // Join date
-            const joinDate = user.metadata.creationTime ? 
-                new Date(user.metadata.creationTime).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 
-                'Recently';
-            document.getElementById('joinedDate').textContent = joinDate;
 
             await loadUserStats(user.uid);
         });
