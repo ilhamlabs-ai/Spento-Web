@@ -370,13 +370,26 @@
 
         // Analyze receipt with Cloud Function (SECURE!)
         analyzeBtn.addEventListener('click', async () => {
-            if (!selectedFile) return;
+            if (!selectedFile) {
+                alert('Please select an image first');
+                return;
+            }
+
+            console.log('Starting receipt analysis...');
+            console.log('File type:', selectedFile.type);
+            console.log('File size:', selectedFile.size, 'bytes');
 
             previewArea.classList.add('hidden');
             loadingState.classList.remove('hidden');
 
             try {
+                // Convert file to base64
+                console.log('Converting image to base64...');
                 const base64Image = await fileToBase64(selectedFile);
+                console.log('Base64 conversion successful, length:', base64Image.length);
+
+                // Call Cloud Function
+                console.log('Calling analyzeReceipt Cloud Function...');
                 const analyzeReceipt = httpsCallable(functions, 'analyzeReceipt');
                 
                 const result = await analyzeReceipt({
@@ -384,12 +397,30 @@
                     mimeType: selectedFile.type
                 });
                 
+                console.log('Analysis complete:', result.data);
+                
                 loadingState.classList.add('hidden');
                 displayAnalysisResult(result.data);
             } catch (error) {
                 loadingState.classList.add('hidden');
-                alert('Failed to analyze receipt. Please try again or enter manually.');
                 console.error('Analysis error:', error);
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
+                console.error('Error details:', error.details);
+                
+                let errorMessage = 'Failed to analyze receipt. ';
+                
+                if (error.code === 'unauthenticated') {
+                    errorMessage += 'Please sign in again.';
+                } else if (error.code === 'failed-precondition') {
+                    errorMessage += 'Server configuration error. Please contact support.';
+                } else if (error.message) {
+                    errorMessage += error.message;
+                } else {
+                    errorMessage += 'Please try again or enter manually.';
+                }
+                
+                alert(errorMessage);
                 previewArea.classList.remove('hidden');
             }
         });

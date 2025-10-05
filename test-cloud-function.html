@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Cloud Function - Spento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+        <h1 class="text-2xl font-bold mb-4">🧪 Cloud Function Test</h1>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">Select Receipt Image:</label>
+            <input type="file" id="testImage" accept="image/*" class="border p-2 rounded w-full">
+        </div>
+
+        <button id="testBtn" class="bg-blue-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-300">
+            Test Analysis
+        </button>
+
+        <div id="status" class="mt-4 p-4 rounded hidden"></div>
+
+        <div id="logs" class="mt-4 bg-gray-900 text-green-400 p-4 rounded font-mono text-sm overflow-auto max-h-96"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+        import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC6QYvm6Y_lb7aO_v2bSepXZ6qxBxkkuyE",
+            authDomain: "biller-app-13fb1.firebaseapp.com",
+            projectId: "biller-app-13fb1",
+            storageBucket: "biller-app-13fb1.firebasestorage.app",
+            messagingSenderId: "563377160023",
+            appId: "1:563377160023:web:533869f1ed33b2bfe6c812",
+            measurementId: "G-NLT1KF5B10"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const functions = getFunctions(app);
+
+        const logsDiv = document.getElementById('logs');
+        const statusDiv = document.getElementById('status');
+        const testBtn = document.getElementById('testBtn');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : 'text-blue-400';
+            logsDiv.innerHTML += `<div class="${color}">[${timestamp}] ${message}</div>`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function showStatus(message, type = 'info') {
+            statusDiv.classList.remove('hidden', 'bg-red-100', 'bg-green-100', 'bg-blue-100', 'text-red-800', 'text-green-800', 'text-blue-800');
+            
+            if (type === 'error') {
+                statusDiv.classList.add('bg-red-100', 'text-red-800');
+            } else if (type === 'success') {
+                statusDiv.classList.add('bg-green-100', 'text-green-800');
+            } else {
+                statusDiv.classList.add('bg-blue-100', 'text-blue-800');
+            }
+            
+            statusDiv.textContent = message;
+        }
+
+        log('🚀 Test page loaded');
+        log('📡 Checking authentication...');
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                log('❌ Not authenticated! Please sign in first.', 'error');
+                showStatus('Please sign in at index.html first, then return here', 'error');
+                testBtn.disabled = true;
+                return;
+            }
+            log(`✅ Authenticated as: ${user.email}`, 'success');
+            showStatus('Ready to test! Select an image and click Test Analysis', 'success');
+        });
+
+        testBtn.addEventListener('click', async () => {
+            const fileInput = document.getElementById('testImage');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showStatus('Please select an image first', 'error');
+                return;
+            }
+
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            log('🔬 Starting analysis test...');
+            log(`📄 File: ${file.name}`);
+            log(`📏 Size: ${(file.size / 1024).toFixed(2)} KB`);
+            log(`🎨 Type: ${file.type}`);
+
+            testBtn.disabled = true;
+            showStatus('Analyzing...', 'info');
+
+            try {
+                // Convert to base64
+                log('🔄 Converting to base64...');
+                const base64 = await fileToBase64(file);
+                log(`✅ Base64 length: ${base64.length} characters`);
+
+                // Call Cloud Function
+                log('☁️ Calling Cloud Function...');
+                const analyzeReceipt = httpsCallable(functions, 'analyzeReceipt');
+                
+                const result = await analyzeReceipt({
+                    imageData: base64,
+                    mimeType: file.type
+                });
+
+                log('✅ Cloud Function returned successfully!', 'success');
+                log('📊 Result:');
+                log(JSON.stringify(result.data, null, 2));
+
+                showStatus(`Success! Found ${result.data.items?.length || 0} items, total: €${result.data.total}`, 'success');
+
+            } catch (error) {
+                log(`❌ ERROR: ${error.message}`, 'error');
+                log(`Code: ${error.code}`);
+                log(`Details: ${error.details || 'none'}`);
+                
+                showStatus(`Failed: ${error.message}`, 'error');
+            } finally {
+                testBtn.disabled = false;
+            }
+        });
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+    </script>
+</body>
+</html>

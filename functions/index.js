@@ -59,6 +59,10 @@ Important rules:
 `;
 
   try {
+    console.log('Calling Gemini API...');
+    console.log('Image size (base64):', imageData.length);
+    console.log('MIME type:', mimeType);
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -82,22 +86,30 @@ Important rules:
       }
     );
 
+    console.log('Gemini API response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Gemini API error response:', errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
+    console.log('Gemini API result:', JSON.stringify(result, null, 2));
     
     if (!result.candidates || !result.candidates[0]) {
-      throw new Error('No response from Gemini');
+      console.error('No candidates in response:', result);
+      throw new Error('No response from Gemini - the image might be unclear or blocked');
     }
 
     const text = result.candidates[0].content.parts[0].text;
+    console.log('Extracted text from Gemini:', text);
     
     // Extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsedData = JSON.parse(jsonMatch[0]);
+      console.log('Parsed data:', parsedData);
       
       // Validate the response structure
       if (typeof parsedData.total !== 'number') {
@@ -110,16 +122,19 @@ Important rules:
         parsedData.date = new Date().toISOString().split('T')[0];
       }
       
+      console.log('Returning parsed data:', parsedData);
       return parsedData;
     }
     
-    throw new Error('Failed to parse JSON from response');
+    console.error('Failed to find JSON in response text:', text);
+    throw new Error('Failed to parse JSON from response - AI returned unexpected format');
 
   } catch (error) {
     console.error('Gemini API Error:', error);
+    console.error('Error stack:', error.stack);
     throw new functions.https.HttpsError(
       'internal',
-      'Failed to analyze receipt',
+      'Failed to analyze receipt: ' + error.message,
       error.message
     );
   }
