@@ -498,14 +498,14 @@
         // Save bill from analysis
         document.getElementById('saveBillBtn').addEventListener('click', async () => {
             const billData = {
-                name: document.getElementById('billName').value,
+                username: document.getElementById('billName').value,
                 category: document.getElementById('billCategory').value,
                 amount: parseFloat(document.getElementById('billAmount').value),
                 date: document.getElementById('billDate').value,
-                ownerId: currentUser.uid, // ✅ Required by your rules
-                items: window.analyzedItems || [],
-                source: 'receipt_scan',
-                created_at: serverTimestamp()
+                ownerId: currentUser.uid,
+                description: `Receipt scanned - ${window.analyzedItems?.length || 0} items detected`,
+                created_at: serverTimestamp(),
+                updated_at: serverTimestamp()
             };
 
             await saveBill(billData);
@@ -516,15 +516,14 @@
             e.preventDefault();
 
             const billData = {
-                name: document.getElementById('manualName').value,
+                username: document.getElementById('manualName').value,
                 category: document.getElementById('manualCategory').value,
                 amount: parseFloat(document.getElementById('manualAmount').value),
                 date: document.getElementById('manualDate').value,
-                ownerId: currentUser.uid, // ✅ Required by your rules
-                items: [],
-                source: 'manual',
-                notes: document.getElementById('manualNotes').value || null,
-                created_at: serverTimestamp()
+                ownerId: currentUser.uid,
+                description: document.getElementById('manualNotes').value || '',
+                created_at: serverTimestamp(),
+                updated_at: serverTimestamp()
             };
 
             await saveBill(billData);
