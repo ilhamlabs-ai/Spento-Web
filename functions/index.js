@@ -3,13 +3,25 @@ const fetch = require('node-fetch');
 
 // Analyze receipt with Gemini API
 exports.analyzeReceipt = functions.https.onCall(async (data, context) => {
-  // ✅ Check if user is authenticated (matches your Firestore rules)
+  // ✅ Enhanced authentication check with detailed logging
+  console.log('Function called with context:', {
+    auth: context.auth ? {
+      uid: context.auth.uid,
+      token: context.auth.token ? 'present' : 'missing'
+    } : 'NO AUTH CONTEXT',
+    rawAuth: Boolean(context.rawRequest?.headers?.authorization)
+  });
+
   if (!context.auth) {
+    console.error('❌ No authentication context found!');
+    console.error('Headers:', context.rawRequest?.headers);
     throw new functions.https.HttpsError(
       'unauthenticated',
       'User must be authenticated to analyze receipts'
     );
   }
+
+  console.log('✅ User authenticated:', context.auth.uid);
 
   const { imageData, mimeType } = data;
 

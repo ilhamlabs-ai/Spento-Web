@@ -256,7 +256,8 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const functions = getFunctions(app);
+        // ✅ Explicitly specify the region for Cloud Functions
+        const functions = getFunctions(app, 'us-central1');
 
         // 🔐 NO API KEY HERE - Using Cloud Functions!
 
@@ -388,7 +389,19 @@
             }
 
             console.log('Starting receipt analysis...');
-            console.log('Authenticated user:', currentUser.uid);
+            console.log('Authenticated user:', currentUser.uid, currentUser.email);
+            
+            // ✅ Verify we can get the ID token
+            try {
+                const idToken = await currentUser.getIdToken();
+                console.log('ID Token obtained:', idToken ? 'Yes' : 'No');
+                console.log('Token length:', idToken?.length);
+            } catch (tokenError) {
+                console.error('Failed to get ID token:', tokenError);
+                alert('Authentication issue. Please refresh the page and try again.');
+                return;
+            }
+
             console.log('File type:', selectedFile.type);
             console.log('File size:', selectedFile.size, 'bytes');
 
@@ -402,7 +415,7 @@
                 console.log('Base64 conversion successful, length:', base64Image.length);
 
                 // Call Cloud Function
-                console.log('Calling analyzeReceipt Cloud Function...');
+                console.log('Calling analyzeReceipt Cloud Function in us-central1...');
                 const analyzeReceipt = httpsCallable(functions, 'analyzeReceipt');
                 
                 const result = await analyzeReceipt({
@@ -420,12 +433,19 @@
                 console.error('Error code:', error.code);
                 console.error('Error message:', error.message);
                 console.error('Error details:', error.details);
+                console.error('Full error:', JSON.stringify(error, null, 2));
                 
                 let errorMessage = 'Failed to analyze receipt. ';
                 
                 if (error.code === 'unauthenticated') {
-                    errorMessage += 'Please sign in again. Try refreshing the page.';
-                    window.location.href = 'index.html';
+                    errorMessage += 'Authentication issue detected. Please try:\n1. Refresh the page\n2. Sign out and sign in again\n3. Clear browser cache';
+                    setTimeout(() => {
+                        if (confirm('Would you like to sign out and sign in again?')) {
+                            auth.signOut().then(() => {
+                                window.location.href = 'index.html';
+                            });
+                        }
+                    }, 1000);
                 } else if (error.code === 'failed-precondition') {
                     errorMessage += 'Server configuration error. Please contact support.';
                 } else if (error.message) {
