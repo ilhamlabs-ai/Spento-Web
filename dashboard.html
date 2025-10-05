@@ -202,13 +202,27 @@
         // Load dashboard data
         async function loadDashboardData(userId) {
             try {
+                console.log('Loading dashboard data for user:', userId);
                 const billsRef = collection(db, 'bills');
-                const q = query(billsRef, where('ownerId', '==', userId), orderBy('created_at', 'desc'));
+                
+                // Simplified query without orderBy to avoid composite index requirement
+                const q = query(billsRef, where('ownerId', '==', userId));
                 const snapshot = await getDocs(q);
+                
+                console.log('Bills loaded:', snapshot.size);
                 
                 const bills = [];
                 snapshot.forEach(doc => {
-                    bills.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    console.log('Bill:', doc.id, data);
+                    bills.push({ id: doc.id, ...data });
+                });
+
+                // Sort in JavaScript instead
+                bills.sort((a, b) => {
+                    const dateA = a.created_at?.toDate() || new Date(a.date);
+                    const dateB = b.created_at?.toDate() || new Date(b.date);
+                    return dateB - dateA;
                 });
 
                 // Calculate statistics
@@ -226,6 +240,8 @@
                     if (billDate >= monthStart) thisMonth += amount;
                 });
 
+                console.log('Stats - This week:', thisWeek, 'This month:', thisMonth, 'Total bills:', bills.length);
+
                 // Update UI
                 document.getElementById('thisWeekAmount').textContent = `€${thisWeek.toFixed(0)}`;
                 document.getElementById('thisMonthAmount').textContent = `€${thisMonth.toFixed(0)}`;
@@ -241,6 +257,23 @@
 
             } catch (error) {
                 console.error('Error loading dashboard:', error);
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
+                
+                // Show error to user
+                const container = document.getElementById('recentBillsList');
+                container.innerHTML = `
+                    <div class="text-center text-red-500 py-8">
+                        <svg class="w-16 h-16 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p>Error loading dashboard data</p>
+                        <p class="text-sm text-gray-500 mt-2">${error.message}</p>
+                        <button onclick="location.reload()" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-lg">
+                            Retry
+                        </button>
+                    </div>
+                `;
             }
         }
 

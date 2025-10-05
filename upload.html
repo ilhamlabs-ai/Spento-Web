@@ -64,13 +64,13 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-4 mt-6">
-                    <button id="cameraBtn" class="bg-white text-blue-600 py-4 rounded-xl font-semibold flex items-center justify-center space-x-2 hover:shadow-lg transition">
+                    <button id="cameraBtn" disabled class="bg-white text-blue-600 py-4 rounded-xl font-semibold flex items-center justify-center space-x-2 hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
                         </svg>
                         <span>Camera</span>
                     </button>
-                    <button id="galleryBtn" class="bg-white/20 border-2 border-white text-white py-4 rounded-xl font-semibold flex items-center justify-center space-x-2 hover:bg-white/30 transition">
+                    <button id="galleryBtn" disabled class="bg-white/20 border-2 border-white text-white py-4 rounded-xl font-semibold flex items-center justify-center space-x-2 hover:bg-white/30 transition disabled:opacity-50 disabled:cursor-not-allowed">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
@@ -95,7 +95,7 @@
                     <img id="previewImage" class="w-full h-auto">
                 </div>
                 <div class="flex space-x-3 mt-4">
-                    <button id="analyzeBtn" class="gradient-bg text-white flex-1 py-3 rounded-xl font-semibold hover:shadow-lg transition">
+                    <button id="analyzeBtn" disabled class="gradient-bg text-white flex-1 py-3 rounded-xl font-semibold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
                         🔍 Analyze Receipt
                     </button>
                     <button id="cancelBtn" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-300 transition">
@@ -270,8 +270,13 @@
                 window.location.href = 'index.html';
                 return;
             }
-            console.log('User authenticated:', user.uid);
+            console.log('✅ User authenticated:', user.uid, user.email);
             currentUser = user;
+            
+            // Enable buttons now that user is authenticated
+            document.getElementById('analyzeBtn').disabled = false;
+            document.getElementById('cameraBtn').disabled = false;
+            document.getElementById('galleryBtn').disabled = false;
         });
 
         // Tab switching
@@ -375,7 +380,15 @@
                 return;
             }
 
+            // ✅ Check authentication before proceeding
+            if (!currentUser) {
+                alert('Please wait for authentication to complete, then try again.');
+                console.error('Not authenticated yet');
+                return;
+            }
+
             console.log('Starting receipt analysis...');
+            console.log('Authenticated user:', currentUser.uid);
             console.log('File type:', selectedFile.type);
             console.log('File size:', selectedFile.size, 'bytes');
 
@@ -411,7 +424,8 @@
                 let errorMessage = 'Failed to analyze receipt. ';
                 
                 if (error.code === 'unauthenticated') {
-                    errorMessage += 'Please sign in again.';
+                    errorMessage += 'Please sign in again. Try refreshing the page.';
+                    window.location.href = 'index.html';
                 } else if (error.code === 'failed-precondition') {
                     errorMessage += 'Server configuration error. Please contact support.';
                 } else if (error.message) {
