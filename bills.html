@@ -255,7 +255,7 @@
                                 ${icon}
                             </div>
                             <div class="flex-1 min-w-0">
-                                <div class="font-semibold text-gray-800 truncate">${bill.username || 'Unnamed Bill'}</div>
+                                <div class="font-semibold text-gray-800 truncate">${bill.description || 'No description'}</div>
                                 <div class="text-sm text-gray-500">
                                     <span class="capitalize">${bill.category}</span> • ${date}
                                 </div>
@@ -283,7 +283,7 @@
                     <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-4xl mx-auto mb-3">
                         ${icon}
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-2">${bill.username || 'Unnamed Bill'}</h2>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">${bill.description || 'No description'}</h2>
                     <div class="text-3xl font-bold gradient-bg bg-clip-text text-transparent">€${amount.toFixed(2)}</div>
                 </div>
 
@@ -296,14 +296,11 @@
                         <div class="text-sm text-purple-600 mb-1">Date</div>
                         <div class="font-semibold text-purple-800">${bill.date || 'N/A'}</div>
                     </div>
-                </div>
-
-                ${bill.description ? `
-                    <div class="mb-6">
-                        <h3 class="font-semibold text-gray-800 mb-2">Description</h3>
-                        <p class="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">${bill.description}</p>
+                    <div class="bg-teal-50 rounded-xl p-4 col-span-2">
+                        <div class="text-sm text-teal-600 mb-1">Added by</div>
+                        <div class="font-semibold text-teal-800">${bill.username || 'Unknown'}</div>
                     </div>
-                ` : ''}
+                </div>
 
                 <div class="flex space-x-3">
                     <button onclick="deleteBill('${bill.id}')" class="flex-1 bg-red-500 text-white py-3 rounded-xl font-semibold hover:bg-red-600 transition">
