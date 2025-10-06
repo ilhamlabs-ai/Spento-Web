@@ -34,8 +34,21 @@ exports.analyzeReceipt = functions.https.onCall(async (data, context) => {
 
   const { imageData, mimeType } = data;
 
-  // Validate input
+  // Enhanced input validation with logging
+  console.log('Received data keys:', Object.keys(data));
+  console.log('imageData type:', typeof imageData);
+  console.log('imageData length:', imageData?.length);
+  console.log('mimeType:', mimeType);
+
   if (!imageData || !mimeType) {
+    console.error('❌ Validation failed:', {
+      hasImageData: Boolean(imageData),
+      imageDataType: typeof imageData,
+      imageDataLength: imageData?.length,
+      hasMimeType: Boolean(mimeType),
+      mimeType: mimeType,
+      allDataKeys: Object.keys(data)
+    });
     throw new functions.https.HttpsError(
       'invalid-argument',
       'Missing image data or mime type'
