@@ -32,23 +32,27 @@ exports.analyzeReceipt = functions.https.onCall(async (data, context) => {
     console.warn('⚠️ No auth context, but proceeding for testing');
   }
 
-  const { imageData, mimeType } = data;
+  // � DEBUG: Log the entire data structure
+  console.log('Raw data parameter type:', typeof data);
+  console.log('Raw data keys:', Object.keys(data || {}));
+  console.log('Has data.data?', Boolean(data?.data));
+  console.log('data.data keys:', data?.data ? Object.keys(data.data) : 'N/A');
+  
+  // 🔥 FIX: The actual payload might be nested in data.data
+  const actualData = data?.data || data;
+  const { imageData, mimeType } = actualData;
 
   // Enhanced input validation with logging
-  console.log('Received data keys:', Object.keys(data));
-  console.log('imageData type:', typeof imageData);
-  console.log('imageData length:', imageData?.length);
-  console.log('mimeType:', mimeType);
+  console.log('Extracted values:', {
+    hasImageData: Boolean(imageData),
+    imageDataType: typeof imageData,
+    imageDataLength: imageData?.length,
+    hasMimeType: Boolean(mimeType),
+    mimeType: mimeType
+  });
 
   if (!imageData || !mimeType) {
-    console.error('❌ Validation failed:', {
-      hasImageData: Boolean(imageData),
-      imageDataType: typeof imageData,
-      imageDataLength: imageData?.length,
-      hasMimeType: Boolean(mimeType),
-      mimeType: mimeType,
-      allDataKeys: Object.keys(data)
-    });
+    console.error('❌ Validation failed - Missing required fields');
     throw new functions.https.HttpsError(
       'invalid-argument',
       'Missing image data or mime type'

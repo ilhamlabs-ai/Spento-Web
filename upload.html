@@ -427,14 +427,25 @@
                 const base64Image = await fileToBase64(selectedFile);
                 console.log('Base64 conversion successful, length:', base64Image.length);
 
+                // Prepare the data payload
+                const payload = {
+                    imageData: base64Image,
+                    mimeType: selectedFile.type
+                };
+                
+                console.log('Payload prepared:', {
+                    hasImageData: Boolean(payload.imageData),
+                    imageDataLength: payload.imageData?.length,
+                    imageDataType: typeof payload.imageData,
+                    mimeType: payload.mimeType,
+                    payloadKeys: Object.keys(payload)
+                });
+
                 // Call Cloud Function
                 console.log('Calling analyzeReceipt Cloud Function in us-central1...');
                 const analyzeReceipt = httpsCallable(functions, 'analyzeReceipt');
                 
-                const result = await analyzeReceipt({
-                    imageData: base64Image,
-                    mimeType: selectedFile.type
-                });
+                const result = await analyzeReceipt(payload);
                 
                 console.log('Analysis complete:', result.data);
                 
