@@ -268,11 +268,9 @@
         // Check authentication
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                console.log('No user authenticated, redirecting to login');
                 window.location.href = 'index.html';
                 return;
             }
-            console.log('✅ User authenticated:', user.uid, user.email);
             currentUser = user;
             
             // Load user data from Firestore
@@ -281,7 +279,6 @@
                 const userSnap = await getDoc(userRef);
                 if (userSnap.exists()) {
                     currentUserData = userSnap.data();
-                    console.log('Loaded user data:', currentUserData);
                 }
             } catch (error) {
                 console.error('Error loading user data:', error);
@@ -401,63 +398,28 @@
                 return;
             }
 
-            console.log('Starting receipt analysis...');
-            console.log('Authenticated user:', currentUser.uid, currentUser.email);
-            
-            // ✅ Verify we can get the ID token
-            try {
-                const idToken = await currentUser.getIdToken();
-                console.log('ID Token obtained:', idToken ? 'Yes' : 'No');
-                console.log('Token length:', idToken?.length);
-            } catch (tokenError) {
-                console.error('Failed to get ID token:', tokenError);
-                alert('Authentication issue. Please refresh the page and try again.');
-                return;
-            }
-
-            console.log('File type:', selectedFile.type);
-            console.log('File size:', selectedFile.size, 'bytes');
-
             previewArea.classList.add('hidden');
             loadingState.classList.remove('hidden');
 
             try {
                 // Convert file to base64
-                console.log('Converting image to base64...');
                 const base64Image = await fileToBase64(selectedFile);
-                console.log('Base64 conversion successful, length:', base64Image.length);
 
                 // Prepare the data payload
                 const payload = {
                     imageData: base64Image,
                     mimeType: selectedFile.type
                 };
-                
-                console.log('Payload prepared:', {
-                    hasImageData: Boolean(payload.imageData),
-                    imageDataLength: payload.imageData?.length,
-                    imageDataType: typeof payload.imageData,
-                    mimeType: payload.mimeType,
-                    payloadKeys: Object.keys(payload)
-                });
 
                 // Call Cloud Function
-                console.log('Calling analyzeReceipt Cloud Function in us-central1...');
                 const analyzeReceipt = httpsCallable(functions, 'analyzeReceipt');
-                
                 const result = await analyzeReceipt(payload);
-                
-                console.log('Analysis complete:', result.data);
                 
                 loadingState.classList.add('hidden');
                 displayAnalysisResult(result.data);
             } catch (error) {
                 loadingState.classList.add('hidden');
                 console.error('Analysis error:', error);
-                console.error('Error code:', error.code);
-                console.error('Error message:', error.message);
-                console.error('Error details:', error.details);
-                console.error('Full error:', JSON.stringify(error, null, 2));
                 
                 let errorMessage = 'Failed to analyze receipt. ';
                 

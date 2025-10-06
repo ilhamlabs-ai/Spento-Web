@@ -1,179 +1,126 @@
-const functions = require('firebase-functions');
-const fetch = require('node-fetch');
+﻿const functions = require("firebase-functions");
+const fetch = require("node-fetch");
 
-// Load environment variables
-require('dotenv').config();
+require("dotenv").config();
 
-// Analyze receipt with Gemini API
-// TEMPORARY: Allowing unauthenticated calls for testing
 exports.analyzeReceipt = functions.https.onCall(async (data, context) => {
-  // Log authentication context for debugging
-  console.log('Function called with context:', {
-    auth: context.auth ? {
-      uid: context.auth.uid,
-      token: context.auth.token ? 'present' : 'missing'
-    } : 'NO AUTH CONTEXT',
-    rawAuth: Boolean(context.rawRequest?.headers?.authorization),
-    appCheck: Boolean(context.app)
-  });
-
-  // TEMPORARY: Comment out auth check to test if function works
-  // if (!context.auth) {
-  //   console.error('❌ No authentication context found!');
-  //   throw new functions.https.HttpsError(
-  //     'unauthenticated',
-  //     'User must be authenticated to analyze receipts'
-  //   );
-  // }
-
-  if (context.auth) {
-    console.log('✅ User authenticated:', context.auth.uid);
-  } else {
-    console.warn('⚠️ No auth context, but proceeding for testing');
+  if (!context.auth) {
+    console.error("Authentication required");
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "User must be authenticated to analyze receipts"
+    );
   }
-
-  // � DEBUG: Log the entire data structure
-  console.log('Raw data parameter type:', typeof data);
-  console.log('Raw data keys:', Object.keys(data || {}));
-  console.log('Has data.data?', Boolean(data?.data));
-  console.log('data.data keys:', data?.data ? Object.keys(data.data) : 'N/A');
   
-  // 🔥 FIX: The actual payload might be nested in data.data
   const actualData = data?.data || data;
   const { imageData, mimeType } = actualData;
 
-  // Enhanced input validation with logging
-  console.log('Extracted values:', {
-    hasImageData: Boolean(imageData),
-    imageDataType: typeof imageData,
-    imageDataLength: imageData?.length,
-    hasMimeType: Boolean(mimeType),
-    mimeType: mimeType
-  });
-
   if (!imageData || !mimeType) {
-    console.error('❌ Validation failed - Missing required fields');
+    console.error("Missing required fields");
     throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Missing image data or mime type'
+      "invalid-argument",
+      "Missing image data or mime type"
     );
   }
 
-  // 🔐 Get API key from environment or config
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY || functions.config().gemini?.key;
 
   if (!GEMINI_API_KEY) {
     throw new functions.https.HttpsError(
-      'failed-precondition',
-      'Gemini API key not configured'
+      "failed-precondition",
+      "Gemini API key not configured"
     );
   }
 
-  const prompt = `
-You are an expert at reading receipts and extracting structured data. Given an image of a bill or receipt, extract the following information:
-
-1. List of items with their names, categories, and individual amounts
-2. Total amount of the bill
-3. Date of purchase
-
-For categories, use one of these: grocery, utensil, clothing, miscellaneous
-
-Return the result as clean JSON in this exact format:
-{
-  "items": [
-    {"name": "Item Name", "category": "grocery", "amount": 123.45}
-  ],
-  "total": 1234.56,
-  "date": "2025-01-15"
-}
-
-Important rules:
-- Only return valid JSON, no other text
-- If you can't read the image clearly, return an empty items array
-- Use "miscellaneous" category if unsure
-- Format date as YYYY-MM-DD
-- Amounts should be numbers, not strings
-- If no date is visible, use today's date
-`;
+  const prompt = "You are an expert at reading receipts and extracting structured data. Given an image of a bill or receipt, extract the following information:\n\n1. List of items with their names, categories, and individual amounts\n2. Total amount of the bill\n3. Date of purchase\n\nFor categories, use one of these: grocery, utensil, clothing, miscellaneous\n\nReturn the result as clean JSON in this exact format:\n{\n  \"items\": [\n    {\"name\": \"Item Name\", \"category\": \"grocery\", \"amount\": 123.45}\n  ],\n  \"total\": 1234.56,\n  \"date\": \"2025-01-15\"\n}\n\nImportant rules:\n- Only return valid JSON, no other text\n- If you cannot read the image clearly, return an empty items array\n- Use \"miscellaneous\" category if unsure\n- Format date as YYYY-MM-DD\n- Amounts should be numbers, not strings\n- If no date is visible, use today date";
 
   try {
-    console.log('Calling Gemini API...');
-    console.log('Image size (base64):', imageData.length);
-    console.log('MIME type:', mimeType);
-
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + GEMINI_API_KEY,
       {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: imageData
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                {
+                  inline_data: {
+                    mime_type: mimeType,
+                    data: imageData
+                  }
                 }
-              }
-            ]
-          }]
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.4,
+            topK: 32,
+            topP: 1,
+            maxOutputTokens: 2048,
+          }
         })
       }
     );
 
-    console.log('Gemini API response status:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Gemini API error response:', errorText);
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+      console.error("Gemini API error:", response.status, errorText);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Gemini API error: " + response.status
+      );
     }
 
     const result = await response.json();
-    console.log('Gemini API result:', JSON.stringify(result, null, 2));
-    
-    if (!result.candidates || !result.candidates[0]) {
-      console.error('No candidates in response:', result);
-      throw new Error('No response from Gemini - the image might be unclear or blocked');
+    const textPart = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!textPart) {
+      console.error("No text in Gemini response");
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to get response from Gemini"
+      );
     }
 
-    const text = result.candidates[0].content.parts[0].text;
-    console.log('Extracted text from Gemini:', text);
-    
-    // Extract JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsedData = JSON.parse(jsonMatch[0]);
-      console.log('Parsed data:', parsedData);
-      
-      // Validate the response structure
-      if (typeof parsedData.total !== 'number') {
-        parsedData.total = 0;
-      }
-      if (!Array.isArray(parsedData.items)) {
-        parsedData.items = [];
-      }
-      if (!parsedData.date) {
-        parsedData.date = new Date().toISOString().split('T')[0];
-      }
-      
-      console.log('Returning parsed data:', parsedData);
-      return parsedData;
+    let cleanedText = textPart.trim();
+    if (cleanedText.startsWith("``json")) {
+      cleanedText = cleanedText.replace(/``json\n?/g, "").replace(/``\n?/g, "");
+    } else if (cleanedText.startsWith("``")) {
+      cleanedText = cleanedText.replace(/``\n?/g, "");
     }
-    
-    console.error('Failed to find JSON in response text:', text);
-    throw new Error('Failed to parse JSON from response - AI returned unexpected format');
+
+    let parsedData;
+    try {
+      parsedData = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error("Failed to parse JSON:", cleanedText);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to parse receipt data"
+      );
+    }
+
+    return {
+      success: true,
+      items: parsedData.items || [],
+      total: parsedData.total || 0,
+      date: parsedData.date || new Date().toISOString().split("T")[0]
+    };
 
   } catch (error) {
-    console.error('Gemini API Error:', error);
-    console.error('Error stack:', error.stack);
+    console.error("Error analyzing receipt:", error);
+    
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    
     throw new functions.https.HttpsError(
-      'internal',
-      'Failed to analyze receipt: ' + error.message,
-      error.message
+      "internal",
+      "Failed to analyze receipt"
     );
   }
 });

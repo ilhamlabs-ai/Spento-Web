@@ -202,19 +202,15 @@
         // Load dashboard data
         async function loadDashboardData(userId) {
             try {
-                console.log('Loading dashboard data for user:', userId);
                 const billsRef = collection(db, 'bills');
                 
                 // Simplified query without orderBy to avoid composite index requirement
                 const q = query(billsRef, where('ownerId', '==', userId));
                 const snapshot = await getDocs(q);
                 
-                console.log('Bills loaded:', snapshot.size);
-                
                 const bills = [];
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    console.log('Bill:', doc.id, data);
                     bills.push({ id: doc.id, ...data });
                 });
 

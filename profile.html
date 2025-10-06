@@ -235,8 +235,6 @@
                 return;
             }
             
-            console.log('Loading profile for user:', user.uid);
-            
             // Load user data from Firestore users collection (Flutter schema)
             try {
                 const userRef = doc(db, 'users', user.uid);
@@ -244,7 +242,6 @@
                 
                 if (userSnap.exists()) {
                     const userData = userSnap.data();
-                    console.log('User data from Firestore:', userData);
                     
                     // Display user info from Firestore
                     document.getElementById('userName').textContent = userData.name || userData.username || 'User';
@@ -264,7 +261,6 @@
                     document.getElementById('joinedDate').textContent = joinDate;
                 } else {
                     // Fallback to Firebase Auth data
-                    console.log('No Firestore user data, using Firebase Auth');
                     document.getElementById('userName').textContent = user.displayName || 'User';
                     document.getElementById('userEmail').textContent = user.email;
                     
@@ -290,12 +286,9 @@
 
         async function loadUserStats(userId) {
             try {
-                console.log('Loading user stats for:', userId);
                 const billsRef = collection(db, 'bills');
                 const q = query(billsRef, where('ownerId', '==', userId));
                 const snapshot = await getDocs(q);
-                
-                console.log('Bills loaded:', snapshot.size);
                 
                 const bills = [];
                 snapshot.forEach(doc => {

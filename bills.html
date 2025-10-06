@@ -158,11 +158,9 @@
         // Check authentication
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                console.log('No user authenticated, redirecting to login');
                 window.location.href = 'index.html';
                 return;
             }
-            console.log('User authenticated:', user.uid);
             currentUser = user;
             await loadBills();
         });
@@ -170,19 +168,15 @@
         // Load all bills
         async function loadBills() {
             try {
-                console.log('Loading bills for user:', currentUser.uid);
                 const billsRef = collection(db, 'bills');
                 
-                // Try query with just where clause first (no orderBy to avoid index requirement)
+                // Query without orderBy to avoid index requirement
                 const q = query(billsRef, where('ownerId', '==', currentUser.uid));
                 const snapshot = await getDocs(q);
-                
-                console.log('Bills loaded:', snapshot.size);
                 
                 allBills = [];
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    console.log('Bill data:', doc.id, data);
                     allBills.push({ id: doc.id, ...data });
                 });
 
