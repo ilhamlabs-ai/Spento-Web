@@ -4,16 +4,14 @@ const fetch = require("node-fetch");
 require("dotenv").config();
 
 exports.analyzeReceipt = functions.https.onCall(async (data, context) => {
-  // TEMPORARY: Skip auth check due to Firebase 2nd Gen functions auth context issue
-  // The client is properly authenticated, but context.auth is not being passed through
-  // TODO: Fix by setting IAM permissions or downgrading to 1st Gen functions
-  // if (!context.auth) {
-  //   console.error("Authentication required");
-  //   throw new functions.https.HttpsError(
-  //     "unauthenticated",
-  //     "User must be authenticated to analyze receipts"
-  //   );
-  // }
+  // Authentication check - IAM permissions configured via gcloud
+  if (!context.auth) {
+    console.error("Authentication required");
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "User must be authenticated to analyze receipts"
+    );
+  }
   
   const actualData = data?.data || data;
   const { imageData, mimeType } = actualData;
