@@ -89,12 +89,22 @@ exports.analyzeReceipt = functions.https.onCall(async (data, context) => {
       );
     }
 
+    // Clean up markdown code blocks (```json ... ``` or ``` ... ```)
     let cleanedText = textPart.trim();
-    if (cleanedText.startsWith("``json")) {
-      cleanedText = cleanedText.replace(/``json\n?/g, "").replace(/``\n?/g, "");
-    } else if (cleanedText.startsWith("``")) {
-      cleanedText = cleanedText.replace(/``\n?/g, "");
+    if (cleanedText.startsWith("```json")) {
+      cleanedText = cleanedText.replace(/```json\n?/g, "").replace(/```\n?$/g, "");
+    } else if (cleanedText.startsWith("```")) {
+      cleanedText = cleanedText.replace(/```\n?/g, "");
     }
+    
+    // Also handle backtick-prefixed format like `json
+    if (cleanedText.startsWith("`json")) {
+      cleanedText = cleanedText.replace(/`json\n?/g, "").replace(/`\n?$/g, "");
+    } else if (cleanedText.startsWith("`")) {
+      cleanedText = cleanedText.replace(/`/g, "");
+    }
+    
+    cleanedText = cleanedText.trim();
 
     let parsedData;
     try {
